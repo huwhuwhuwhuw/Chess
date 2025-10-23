@@ -4,3 +4,4 @@ This means the board has to be bigger to accomodate this, this extra size is spe
 TO DO:
 update board correctly when castling and enpassanting
 implement Checkmate
+implement player confirming their moves
