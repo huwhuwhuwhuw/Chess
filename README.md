@@ -7,10 +7,15 @@ Stalemate
 Resigning/Drawing from user input
 Removing any excess/unused class functions eg Piece.coords()
 
+Long term tasks:
+Implement better visuals (Research pygame and other libraries)
+Containerise
+
 Features implemented:
 All pieces correct
-Board updates correctly
-Checkmate
 Castling
 Enpassant
-Move confirmation
+Board updates correctly
+Asks for user inputs nicely
+Checkmate
+
