@@ -18,6 +18,7 @@ class Board:
         self.Up_Border = Sizes_Y[1]
         self.Turn='White'
         self.Check=False
+        self.Pieces_Attacking_King=[]
         
         import numpy as np
         from Piece_Classes import Pawn,Horse,Bishop,Rook,Queen,King,Empty
@@ -108,10 +109,16 @@ class Board:
                 #Ignore current piece as it is the one that is moving
                 if Piece.x==i and Piece.y==j:
                     continue
-                New_x = Piece.x + x
-                New_y= Piece.y + y
-                if New_x < 0 or New_y<0 or New_x > self.X_Size or New_y > self.Y_Size:
+                if square=='Empty':
+                    continue
+                New_x = square.x + x
+                New_y= square.y + y
+                if New_x < 0 or New_y<0 or New_x > self.X_Size-1 or New_y > self.Y_Size-1:
                     #Piece has fallen off the board
+                    if Piece.Castling:
+                        Piece.Castling=False
+                    elif Piece.EnPassanting:
+                        Piece.Enpassanting=False
                     return False
         return True
     
@@ -119,6 +126,38 @@ class Board:
         from Piece_Classes import Empty
         import copy
         New_Board=copy.deepcopy(self.Board)
+        
+        #Special cases
+        #En passant
+        if Piece.EnPassanting:
+            if self.get_Piece(TX,Piece.y) !='Pawn' and Piece!='Pawn':
+                raise ValueError("FAILING TO ENPASSANT"*100)
+            New_Board[TX,Piece.y]=Empty(TX,Piece.y,'Empty',None)
+        #Castling
+        elif Piece.Castling:
+            from Piece_Classes import Rook
+            if Piece !='King':
+                raise ValueError("SOMEHOW CASTLING WITHOUT KING"*100)
+            #Find which way king is trying to castle
+            Direction=int((TX-Piece.x)/2)
+            #Add rook to correct place
+            New_Board[Piece.x+Direction,Piece.y]=Rook(Piece.x+Direction,Piece.y,'Rook',Piece.Colour)
+            New_Board[Piece.x+Direction,Piece.y].Has_Moved=True
+            #If short side castle
+            if (Direction>0 and self.Turn=="White") or (Direction<0 and self.Turn=="Black"):
+                #Short side castle, rook will be 3 squares in Direction
+                Target_Rook=self.get_Piece(Piece.x+3*Direction,Piece.y)
+                if Target_Rook!='Rook':
+                    raise ValueError("Rook is not available to castle")
+                New_Board[Piece.x+3*Direction,Piece.y]=Empty(Piece.x+3*Direction,Piece.y,'Empty',None)
+            elif (Direction<0 and self.Turn=='Black') or (Direction>0 and self.Turn=="White"):
+                #Long side castle, rook will be 4 squares in Direction
+                Target_Rook=self.get_Piece(Piece.x+4*Direction,Piece.y)
+                if Target_Rook!='Rook':
+                    raise ValueError("Rook is not available to castle")
+                New_Board[Piece.x+4*Direction,Piece.y]=Empty(Piece.x+3*Direction,Piece.y,'Empty',None)
+            
+        #Remove piece from board, replace later
         New_Board[Piece.x,Piece.y]= Empty(Piece.x,Piece.y,'Empty',None)
         
         Relative_x=Piece.x-TX
@@ -150,7 +189,14 @@ class Board:
                     New_Board[i,j]=Empty(i,j,'Empty',None)
                 else:
                     square.update_coords_relative(Relative_x,Relative_y)
+        
+        #Replace piece
+        Piece.Castling=False
+        Piece.EnPassanting=False
+        Piece.Has_Moved=True
         New_Board[Piece.x,Piece.y]=Piece
+        
+        
         
         return New_Board
         
@@ -191,17 +237,88 @@ class Board:
             return Board
     
     def is_Player_in_Check(self):
+        #variable for Opposing player
+        self.Check=False
+        Current_Player_Check=False
+        self.Pieces_Attacking_King=[]
         for Row in self.Board:
             for Square in Row:
                 if Square.is_Attacking_King(self):
+                    print(f"{Square.Colour} {Square.Name} is attacking king")
                     if Square.Colour!=self.Turn:
                         #Player is in check at the end of their turn
-                        return True
+                        Current_Player_Check = True
                     elif Square.Colour==self.Turn:
                         #Opposing player is in check
+                        Square.Attacking_King=True
+                        self.Pieces_Attacking_King.append(Square)
                         self.Check=True
-        return False
-        
+        return Current_Player_Check
+    def find_King(self,Colour):
+        for i,row in enumerate(self.Board):
+            for j, square in enumerate(row):
+                if square == 'King' and square.Colour == Colour:
+                    return i,j
+    
+    def is_Checkmate(self):
+        if not self.Check:
+            return False
+        #Check if king can move out of check
+        KX,KY=self.find_King(self.Colour)
+        Move_List=[[1,0],
+                   [1,1],
+                   [1,-1],
+                   [-1,0],
+                   [-1,1],
+                   [-1,-1],
+                   [0,1],
+                   [0,-1]
+                   ]
+        for Move in Move_List:
+            Square=Board.get_Piece(KX+Move[0],KY+Move[1])
+            if Square!='Empty' and Square.Colour!=self.Colour:
+                if not Square.is_Being_Attacked(self):
+                    return False
+        #Check how many pieces are attacking the king
+        N_Pieces=len(self.Pieces_Attacking_King)
+        if N_Pieces>1:
+            #King cannot move out the way and more than one piece cannot be blocked in one move
+            return True
+        #Check if the attacking piece can be taken
+        Piece = self.Pieces_Attacking_King[0]
+        PX=Piece.x
+        PY=Piece.y
+        for row in self.Board:
+            for square in row:
+                if square!='Empty' and square.Colour !=Piece.Colour:
+                    if square.is_legal_move(self,PX,PY):
+                        return False
+        #King cannot move and piece cannot be taken
+        #Check if another piece can block the check
+        if Piece =='Horse' or Piece=='King' or Piece=='Pawn':
+            #Cannot block horses, Kings and Pawns attack from one square away
+            return True
+        else:
+            #Piece is a queen, rook or bishop
+            #Check if it is more than one square away so can be blocked
+            if abs(KX-PX)<=1 and abs(KY-PY)<=1:
+                return True
+            #Create list of squares to try blocking
+            from numpy import linspace
+            Amount_of_Squares=max(abs(KX-PX)+1,abs(KY-PY)+1)
+            for i,(X,Y) in enumerate(zip(linspace(PX,KX,Amount_of_Squares),linspace(PY,KY,Amount_of_Squares))):
+                X=int(X)
+                Y=int(Y)
+                #Ignore starting and king squares
+                if i==0 or (X==KX and Y==KY):
+                    continue
+                for row in self.Board:
+                    for square in row:
+                        if square!='Empty' and square.Colour !=Piece.Colour:
+                            if square.is_legal_move(self,X,Y):
+                                return False
+        return True
+    
     def Switch_Turn(self):
         if self.Turn=='White':
             self.Turn='Black'
