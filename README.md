@@ -2,6 +2,14 @@ This is python code for a chess board where every other piece moves when you 'mo
 This means the board has to be bigger to accomodate this, this extra size is specified by the user.
 
 TO DO:
-update board correctly when castling and enpassanting
-implement Checkmate
-implement player confirming their moves
+Stalemate
+Resigning/Drawing from user input
+Removing any excess/unused class functions eg Piece.coords()
+
+Features implemented:
+All pieces correct
+Board updates correctly
+Checkmate
+Castling
+Enpassant
+Move confirmation
