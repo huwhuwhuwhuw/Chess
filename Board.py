@@ -7,7 +7,7 @@ Created on Mon Oct 20 18:13:51 2025
 """
 
 class Board:
-    def __init__(self,Sizes_X,Sizes_Y):
+    def __init__(self,Sizes_Y=[5,5],Sizes_X=[5,5]):
         X_Size=Sizes_X[0]+Sizes_X[1]+8
         Y_Size=Sizes_Y[0]+Sizes_Y[1]+8
         self.X_Size=X_Size
@@ -19,6 +19,8 @@ class Board:
         self.Turn='White'
         self.Check=False
         self.Pieces_Attacking_King=[]
+        self.Checkmate=False
+        self.Move_List=[]
         
         import numpy as np
         from Piece_Classes import Pawn,Horse,Bishop,Rook,Queen,King,Empty
@@ -94,8 +96,12 @@ class Board:
         print(" "+"\u203E"*(self.X_Size*4-1))
         print(np.array(Coord_row))
     
-    def get_Piece(self,x,y):
-        #Return Name of piece at given coordinates
+    def get_Piece(self,x,y=None):
+        #Return piece at given coordinates
+        if (type(x)==tuple or type(x)==list) and y==None:
+            y=x[1]
+            x=x[0]
+        
         if x>=0 and y>=0 and x<self.X_Size and y<self.Y_Size:
             return self.Board[x,y]
         else:
@@ -123,7 +129,7 @@ class Board:
         return True
     
     def Update_Board(self,Piece,TX,TY):
-        from Piece_Classes import Empty
+        from Piece_Classes import Empty,Queen
         import copy
         New_Board=copy.deepcopy(self.Board)
         
@@ -131,26 +137,26 @@ class Board:
         #En passant
         if Piece.EnPassanting:
             if self.get_Piece(TX,Piece.y) !='Pawn' and Piece!='Pawn':
-                raise ValueError("FAILING TO ENPASSANT"*100)
+                raise ValueError("Incorrect set up to Enpassant")
             New_Board[TX,Piece.y]=Empty(TX,Piece.y,'Empty',None)
         #Castling
         elif Piece.Castling:
             from Piece_Classes import Rook
             if Piece !='King':
-                raise ValueError("SOMEHOW CASTLING WITHOUT KING"*100)
+                raise ValueError("Castling without king")
             #Find which way king is trying to castle
             Direction=int((TX-Piece.x)/2)
             #Add rook to correct place
             New_Board[Piece.x+Direction,Piece.y]=Rook(Piece.x+Direction,Piece.y,'Rook',Piece.Colour)
             New_Board[Piece.x+Direction,Piece.y].Has_Moved=True
             #If short side castle
-            if (Direction>0 and self.Turn=="White") or (Direction<0 and self.Turn=="Black"):
+            if Direction>0:
                 #Short side castle, rook will be 3 squares in Direction
                 Target_Rook=self.get_Piece(Piece.x+3*Direction,Piece.y)
                 if Target_Rook!='Rook':
                     raise ValueError("Rook is not available to castle")
                 New_Board[Piece.x+3*Direction,Piece.y]=Empty(Piece.x+3*Direction,Piece.y,'Empty',None)
-            elif (Direction<0 and self.Turn=='Black') or (Direction>0 and self.Turn=="White"):
+            elif Direction<0:
                 #Long side castle, rook will be 4 squares in Direction
                 Target_Rook=self.get_Piece(Piece.x+4*Direction,Piece.y)
                 if Target_Rook!='Rook':
@@ -189,15 +195,18 @@ class Board:
                     New_Board[i,j]=Empty(i,j,'Empty',None)
                 else:
                     square.update_coords_relative(Relative_x,Relative_y)
+                    #Promote any pawns on the first and final rows
+                    if square=='Pawn':
+                        if square.Colour=="White" and j==self.Y_Size-1:
+                            square=Queen(i,j,'Queen','White')
+                        elif square.Colour=='Black' and j==0:
+                            square=Queen(i,j,'Queen','Black')
         
         #Replace piece
         Piece.Castling=False
         Piece.EnPassanting=False
         Piece.Has_Moved=True
         New_Board[Piece.x,Piece.y]=Piece
-        
-        
-        
         return New_Board
         
     def Add_Row(self,Board,Length,Up=False,Down=False):
@@ -264,7 +273,7 @@ class Board:
         if not self.Check:
             return False
         #Check if king can move out of check
-        KX,KY=self.find_King(self.Colour)
+        KX,KY=self.find_King(self.Turn)
         Move_List=[[1,0],
                    [1,1],
                    [1,-1],
@@ -275,7 +284,7 @@ class Board:
                    [0,-1]
                    ]
         for Move in Move_List:
-            Square=Board.get_Piece(KX+Move[0],KY+Move[1])
+            Square=self.get_Piece(KX+Move[0],KY+Move[1])
             if Square!='Empty' and Square.Colour!=self.Colour:
                 if not Square.is_Being_Attacked(self):
                     return False
@@ -290,9 +299,13 @@ class Board:
         PY=Piece.y
         for row in self.Board:
             for square in row:
+                if square=='King' and square.Colour==self.Turn:
+                    #King is attempting to capture, but we have already checked if the king can move
+                    continue
                 if square!='Empty' and square.Colour !=Piece.Colour:
                     if square.is_legal_move(self,PX,PY):
                         return False
+        
         #King cannot move and piece cannot be taken
         #Check if another piece can block the check
         if Piece =='Horse' or Piece=='King' or Piece=='Pawn':
