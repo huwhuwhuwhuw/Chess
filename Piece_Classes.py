@@ -23,12 +23,46 @@ class Piece:
         else: return '_'
     
     def display(self):
+        """if self.Name=='Pawn':
+            if self.Colour=='White':
+                return '\u265F'
+            else:
+                return'\u2659'
+        elif self.Name=='Horse':
+            if self.Colour=='White':
+                return '\u265E'
+            else:
+                return'\u2658'
+        elif self.Name=='Bishop':
+            if self.Colour=='White':
+                return '\u265D'
+            else:
+                return'\u2657'
+        elif self.Name=='Rook':
+            if self.Colour=='White':
+                return '\u265C'
+            else:
+                return'\u2656'
+        elif self.Name=='Queen':
+            if self.Colour=='White':
+                return '\u265B'
+            else:
+                return'\u2655'
+        elif self.Name=='King':
+            if self.Colour=='White':
+                return '\u265A'
+            else:
+                return'\u2654'
+        else:
+            return "_"
+        """
         if self.Colour=="White":
             return self.Name[0]
         elif self.Colour=='Black':
             return self.Name[0].lower()
         else:
             return "_"
+        
         
     def __eq__(self,other):
         if type(other)==str:
