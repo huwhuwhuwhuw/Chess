@@ -8,7 +8,6 @@ Resigning/Drawing from user input
 Removing any excess/unused class functions eg Piece.coords()
 
 Long term tasks:
-Implement better visuals (Research pygame and other libraries)
 Containerise
 
 Features implemented:
@@ -18,4 +17,5 @@ Enpassant
 Board updates correctly
 Asks for user inputs nicely
 Checkmate
+Better Visuals, using pygame
 
