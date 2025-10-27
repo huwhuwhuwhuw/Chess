@@ -7,12 +7,13 @@ Created on Wed Oct 22 17:41:03 2025
 """
 
 from Board import Board
-from Play import Make_Move
+from Make_Move import Make_Move
 
-x_Borders=[3,3]
-y_Borders=[3,3]
-Board=Board(x_Borders,y_Borders)
+Board=Board()
 
 game_on=True
 while game_on:
+    Board.show_board()
     Make_Move(Board)
+    if Board.Checkmate:
+        game_on=False
